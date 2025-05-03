@@ -4,6 +4,7 @@ import { InboxOutlined, EditOutlined, DeleteOutlined, UploadOutlined, DownloadOu
 import axios from 'axios';
 import moment from 'moment';
 import { API_BASE_URL } from '../config';
+import ExcelJS from 'exceljs';
 
 const { Option } = Select;
 const { confirm } = Modal;
@@ -311,6 +312,49 @@ const ProductList = () => {
     },
   };
 
+  // 导出商品数据，格式与模板一致
+  const handleExportProducts = async () => {
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('商品数据');
+      // 设置表头
+      worksheet.addRow(['商品编码', '商品名称', '单位', '规格', '预估天数', '描述']);
+      // 添加数据
+      products.forEach(product => {
+        worksheet.addRow([
+          product.code || '',
+          product.name || '',
+          product.unit || '',
+          product.specification || '',
+          product.reference_days || '',
+          product.description || ''
+        ]);
+      });
+      worksheet.getColumn(1).width = 15;
+      worksheet.getColumn(2).width = 30;
+      worksheet.getColumn(3).width = 8;
+      worksheet.getColumn(4).width = 15;
+      worksheet.getColumn(5).width = 10;
+      worksheet.getColumn(6).width = 30;
+      // 导出文件
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `商品数据_${moment().format('YYYY-MM-DD_HH-mm-ss')}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      message.success('导出成功');
+    } catch (error) {
+      message.error('导出失败');
+    }
+  };
+
   return (
     <div style={{ padding: '24px' }}>
       <div style={{ marginBottom: 16 }}>
@@ -353,6 +397,9 @@ const ProductList = () => {
           </Upload>
           <Button icon={<DownloadOutlined />} onClick={downloadProductTemplate}>
             下载商品模板
+          </Button>
+          <Button icon={<DownloadOutlined />} onClick={handleExportProducts}>
+            导出商品数据
           </Button>
           <Upload
             accept=".xlsx"

@@ -3,6 +3,7 @@ import { Table, Space, Button, Select, DatePicker, message, Modal, Form, Input, 
 import { EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined, ExclamationCircleOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
 import moment from 'moment';
 import { API_BASE_URL } from '../config';
+import ExcelJS from 'exceljs';
 
 const { Option } = Select;
 const { RangePicker } = DatePicker;
@@ -382,6 +383,67 @@ const ArrivalList = () => {
     }
   };
 
+  // 导出到货记录，宽表格式
+  const handleExportArrivals = async () => {
+    try {
+      // 1. 收集所有商品编码和所有日期
+      const allProductCodes = Array.from(new Set(arrivals.map(record => record.product_code || (record.product && record.product.code)))).filter(Boolean);
+      const allDates = Array.from(new Set(arrivals.map(record => record.expected_date))).sort();
+
+      // 2. 构建数据表：每行一个商品编码，每列为一个日期
+      const dataMap = {};
+      allProductCodes.forEach(code => {
+        dataMap[code] = {};
+      });
+      arrivals.forEach(record => {
+        const code = record.product_code || (record.product && record.product.code);
+        if (dataMap[code]) {
+          dataMap[code][record.expected_date] = record.quantity;
+        }
+      });
+
+      // 3. 创建工作簿和工作表
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('到货数据');
+
+      // 4. 设置表头
+      const headerRow = ['商品编码', ...allDates.map(date => moment(date).format('YYYY/M/D'))];
+      worksheet.addRow(headerRow);
+
+      // 5. 添加数据行
+      allProductCodes.forEach(code => {
+        const row = [code];
+        allDates.forEach(date => {
+          row.push(dataMap[code][date] !== undefined ? dataMap[code][date] : '');
+        });
+        worksheet.addRow(row);
+      });
+
+      // 6. 设置列宽
+      worksheet.getColumn(1).width = 15;
+      for (let i = 0; i < allDates.length; i++) {
+        worksheet.getColumn(i + 2).width = 12;
+      }
+
+      // 7. 导出文件
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `到货数据_${moment().format('YYYY-MM-DD_HH-mm-ss')}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      message.success('导出成功');
+    } catch (error) {
+      message.error('导出失败');
+    }
+  };
+
   return (
     <div style={{ padding: '24px' }}>
       <div style={{ marginBottom: 16 }}>
@@ -405,6 +467,12 @@ const ArrivalList = () => {
             onClick={() => setImportModalVisible(true)}
           >
             批量导入到货记录
+          </Button>
+          <Button
+            icon={<UploadOutlined />} 
+            onClick={handleExportArrivals}
+          >
+            导出到货记录
           </Button>
           <Form
             layout="inline"

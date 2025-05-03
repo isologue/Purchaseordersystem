@@ -176,42 +176,45 @@ const SalesList = () => {
 
   const handleExport = async () => {
     try {
-      // 创建工作簿和工作表
-      const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet('销售记录');
+      // 1. 收集所有商品编码和所有日期
+      const allProductCodes = Array.from(new Set(sales.map(record => record.productCode)));
+      const allDates = Array.from(new Set(sales.map(record => record.date))).sort();
 
-      // 设置列
-      worksheet.columns = [
-        { header: '日期', key: 'date', width: 15 },
-        { header: '商品编码', key: 'product_code', width: 15 },
-        { header: '商品名称', key: 'product_name', width: 20 },
-        { header: '规格', key: 'specification', width: 15 },
-        { header: '销售数量', key: 'quantity', width: 15 }
-      ];
-
-      // 添加数据
-      sales.forEach(record => {
-        worksheet.addRow({
-          date: record.date,
-          product_code: record.productCode,
-          product_name: record.productName,
-          specification: record.specification,
-          quantity: record.quantity
-        });
+      // 2. 构建数据表：每行一个商品编码，每列为一个日期
+      const dataMap = {};
+      allProductCodes.forEach(code => {
+        dataMap[code] = {};
       });
-
-      // 设置表头样式
-      worksheet.getRow(1).font = { bold: true };
-      worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
-
-      // 设置数据行样式
-      worksheet.eachRow((row, rowNumber) => {
-        if (rowNumber > 1) {
-          row.alignment = { vertical: 'middle', horizontal: 'center' };
+      sales.forEach(record => {
+        if (dataMap[record.productCode]) {
+          dataMap[record.productCode][record.date] = record.quantity;
         }
       });
 
-      // 导出文件
+      // 3. 创建工作簿和工作表
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('销量数据');
+
+      // 4. 设置表头
+      const headerRow = ['商品编码', ...allDates.map(date => moment(date).format('YYYY/M/D'))];
+      worksheet.addRow(headerRow);
+
+      // 5. 添加数据行
+      allProductCodes.forEach(code => {
+        const row = [code];
+        allDates.forEach(date => {
+          row.push(dataMap[code][date] !== undefined ? dataMap[code][date] : '');
+        });
+        worksheet.addRow(row);
+      });
+
+      // 6. 设置列宽
+      worksheet.getColumn(1).width = 15;
+      for (let i = 0; i < allDates.length; i++) {
+        worksheet.getColumn(i + 2).width = 12;
+      }
+
+      // 7. 导出文件
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -219,7 +222,7 @@ const SalesList = () => {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `销售记录_${moment().format('YYYY-MM-DD_HH-mm-ss')}.xlsx`;
+      link.download = `销量数据_${moment().format('YYYY-MM-DD_HH-mm-ss')}.xlsx`;
       link.click();
       window.URL.revokeObjectURL(url);
 
