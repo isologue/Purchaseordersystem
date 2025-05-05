@@ -19,10 +19,25 @@
 - npm 6+
 
 ## 安装和运行
+代码文件夹权限变更
+sudo chown -R ubuntu:ubuntu /path/to/folder
+sudo chmod -R 755 /path/to/folder
 ### 后端
 1. 进入 backend 目录
-2. 安装依赖：`pip install -r requirements.txt`
-3. 运行服务：`uvicorn main:app --reload`
+2. 需先安装虚拟环境
+    # 创建虚拟环境（如果尚未创建）
+    python3 -m venv venv
+
+    # 激活虚拟环境
+    source venv/bin/activate
+
+    # 现在可以安全地安装 FastAPI
+    pip install fastapi
+
+    # 安装完成后，可以退出虚拟环境（可选）
+    deactivate
+3. 安装依赖：`pip install -r requirements.txt`
+4. 运行服务：`uvicorn main:app --reload` python3 main.py
 
 ### 前端
 1. 进入 frontend 目录
